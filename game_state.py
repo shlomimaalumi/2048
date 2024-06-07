@@ -1,4 +1,5 @@
 import copy
+from typing import List
 
 import numpy as np
 
@@ -33,7 +34,7 @@ class GameState(object):
     def board(self):
         return self._board
 
-    def get_legal_actions(self, agent_index):
+    def get_legal_actions(self, agent_index) -> List[Action or OpponentAction] :
         if agent_index == 0:
             return self.get_agent_legal_actions()
         elif agent_index == 1:
@@ -41,12 +42,12 @@ class GameState(object):
         else:
             raise Exception("illegal agent index.")
 
-    def get_opponent_legal_actions(self):
+    def get_opponent_legal_actions(self) -> List[OpponentAction]:
         empty_tiles = self.get_empty_tiles()
         return [OpponentAction(row=empty_tiles[0][tile_index], column=empty_tiles[1][tile_index], value=value)
                 for tile_index in range(empty_tiles[0].size) for value in [2, 4]]
 
-    def get_agent_legal_actions(self):
+    def get_agent_legal_actions(self) -> List[Action]:
         legal_actions = []
         left_board = self._get_rotated_board_view(Action.LEFT)
         up_board = self._get_rotated_board_view(Action.UP)
@@ -61,7 +62,7 @@ class GameState(object):
             legal_actions += [Action.DOWN]
         return legal_actions
 
-    def _is_right_legal_action(self, board):
+    def _is_right_legal_action(self, board) -> bool:
         has_tile = board[:, 0:self._num_of_rows - 1] != 0
         ok_to_move = board[:, 1:self._num_of_rows] == 0
         if np.any(np.logical_and(has_tile, ok_to_move)):
@@ -69,10 +70,10 @@ class GameState(object):
         diff = board[:, 1:self._num_of_rows] - board[:, 0:self._num_of_rows - 1]
         return np.any(np.logical_and(has_tile, diff == 0))
 
-    def get_empty_tiles(self):
+    def get_empty_tiles(self)->np.ndarray:
         return np.where(self._board == 0)
 
-    def apply_opponent_action(self, action):
+    def apply_opponent_action(self, action) -> None :
         if self._board[action.row, action.column] != 0:
             raise Exception("illegal opponent action (%s,%s) isn't empty." % (action.row, action.column))
         if action.value <= 0:
@@ -81,7 +82,7 @@ class GameState(object):
         if not self.get_agent_legal_actions():
             self._done = True
 
-    def apply_action(self, action):
+    def apply_action(self, action) -> None:
         rotated_board = self._get_rotated_board_view(action)
         if not self._is_right_legal_action(rotated_board):
             raise Exception("illegal action.")
@@ -89,7 +90,7 @@ class GameState(object):
             self._fuse_tiles_in_row(rotated_board, row)
             self._move_tiles_in_row(rotated_board, row)
 
-    def generate_successor(self, agent_index=0, action=Action.STOP):
+    def generate_successor(self, agent_index=0, action=Action.STOP) -> 'GameState':
         successor = GameState(rows=self._num_of_rows, columns=self._num_of_columns, board=self._board.copy(),
                               score=self.score, done=self._done)
         if agent_index == 0:

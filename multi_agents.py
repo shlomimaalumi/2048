@@ -1,6 +1,12 @@
+import math
+import random
+from pprint import pprint
+from typing import Tuple, Optional, Any, Union
+from pprint import pprint
 import numpy as np
 from enum import Enum
 import abc
+import game_state
 import util
 from game import Agent, Action
 
@@ -8,6 +14,7 @@ from game import Agent, Action
 class AgentType(Enum):
     Player = 0
     Opponent = 1
+
 
 class ReflexAgent(Agent):
     """
@@ -28,37 +35,34 @@ class ReflexAgent(Agent):
         get_action takes a game_state and returns some Action.X for some X in the set {UP, DOWN, LEFT, RIGHT, STOP}
         """
 
-        # Collect legal moves and successor states
         legal_moves = game_state.get_agent_legal_actions()
-
-        # Choose one of the best actions
         scores = [self.evaluation_function(game_state, action) for action in legal_moves]
         best_score = max(scores)
-        best_indices = [index for index in range(len(scores)) if scores[index] == best_score]
-        chosen_index = np.random.choice(best_indices)  # Pick randomly among the best
+        return legal_moves[random.choice([index for index in range(len(scores)) if scores[index] == best_score])]
 
-        "Add more of your code here if you want to"
-
-        return legal_moves[chosen_index]
-
-    def evaluation_function(self, current_game_state, action):
+    @staticmethod
+    def evaluation_function(current_game_state, action):
         """
-        Design a better evaluation function here.
+        Evaluate the given game state based on various factors and return a score.
 
-        The evaluation function takes in the current and proposed successor
-        GameStates (GameState.py) and returns a number, where higher numbers are better.
+        Args:
+            current_game_state (GameState): The current game state.
+            action (int): The action to be taken.
 
+        Returns:
+            float: The evaluation score of the game state.
         """
-
-        # Useful information you can extract from a GameState (game_state.py)
-
         successor_game_state = current_game_state.generate_successor(action=action)
         board = successor_game_state.board
+        board_size = len(board) * len(board[0])
+
         max_tile = successor_game_state.max_tile
         score = successor_game_state.score
-
-        "*** YOUR CODE HERE ***"
-        return score
+        free_tiles = successor_game_state.get_empty_tiles()
+        free_tiles = len(free_tiles[0])
+        taken_tiles = board_size - free_tiles
+        return 0.8 * (score / taken_tiles) + score + max_tile + 0.8 * free_tiles ** 2 + len(
+            successor_game_state.get_legal_actions(0))
 
 
 def score_evaluation_function(current_game_state):
@@ -97,26 +101,49 @@ class MultiAgentSearchAgent(Agent):
 
 
 class MinmaxAgent(MultiAgentSearchAgent):
-    def get_action(self, game_state):
+    def get_action(self, game_state: game_state.GameState):
         """
-        Returns the minimax action from the current gameState using self.depth
-        and self.evaluationFunction.
-
-        Here are some method calls that might be useful when implementing minimax.
-
-        game_state.get_legal_actions(agent_index):
-            Returns a list of legal actions for an agent
-            agent_index=0 means our agent, the opponent is agent_index=1
-
-        Action.STOP:
-            The stop direction, which is always legal
-
-        game_state.generate_successor(agent_index, action):
-            Returns the successor game state after an agent takes an action
+        Returns the minimax action using self.depth and self.evaluation_function
         """
-        """*** YOUR CODE HERE ***"""
-        util.raiseNotDefined()
+        val = self.minmax(game_state, self.depth, AgentType.Player)
+        return val[0]
 
+    def minmax(self, game_state: game_state.GameState, depth, agent: AgentType) -> Tuple[Optional[Action], float]:
+        """
+        Returns the maximum value for the current state
+        """
+        legal_moves = game_state.get_agent_legal_actions() if agent == AgentType.Player \
+            else game_state.get_opponent_legal_actions()
+        if depth == 0 or not legal_moves:
+            return Action.STOP, self.evaluation_function(game_state)
+
+        if agent == AgentType.Player:  # maximize
+            return self.maximize(depth, game_state, legal_moves)
+
+        else:  # minimize
+            return self.minimize(depth, game_state, legal_moves)
+
+    def maximize(self, depth, game_state, legal_moves):
+        value = float('-inf')
+        best_action = Action.STOP
+        for action in legal_moves:
+            successor_state = game_state.generate_successor(agent_index=AgentType.Player.value, action=action)
+            _, successor_value = self.minmax(successor_state, depth - 1, AgentType.Opponent)
+            if successor_value > value:
+                value = successor_value
+                best_action = action
+        return best_action, value
+
+    def minimize(self, depth, game_state, legal_moves):
+        value = float('inf')
+        best_action = Action.STOP
+        for action in legal_moves:
+            successor_state = game_state.generate_successor(agent_index=AgentType.Opponent.value, action=action)
+            _, successor_value = self.minmax(successor_state, depth, AgentType.Player)
+            if successor_value < value:
+                value = successor_value
+                best_action = action
+        return best_action, value
 
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
@@ -128,8 +155,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
-        """*** YOUR CODE HERE ***"""
-        util.raiseNotDefined()
+        return
 
 
 
@@ -147,9 +173,6 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         """
         """*** YOUR CODE HERE ***"""
         util.raiseNotDefined()
-
-
-
 
 
 def better_evaluation_function(current_game_state):
