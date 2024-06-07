@@ -155,8 +155,53 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
-        return
+        action, val = self.alpha_beta_pruning(game_state, self.depth, AgentType.Player)
+        return action
 
+    def alpha_beta_pruning(self, game_state, depth, agent, alpha=float("-inf"), beta=float("inf")):
+        """
+        Returns the maximum value for the current state
+        """
+        legal_moves = game_state.get_agent_legal_actions() if agent == AgentType.Player \
+            else game_state.get_opponent_legal_actions()
+        if depth == 0 or not legal_moves:
+            return Action.STOP, self.evaluation_function(game_state)
+
+        if agent == AgentType.Player:  # maximize
+            return self.maximize_alpha_beta(depth, game_state, legal_moves, alpha, beta)
+
+        else:  # minimize
+            return self.minimize_alpha_beta(depth, game_state, legal_moves, alpha, beta)
+
+    def maximize_alpha_beta(self, depth, game_state, legal_moves, alpha, beta):
+        value = float('-inf')
+        best_action = Action.STOP
+        new_alpha = alpha
+        for action in legal_moves:
+            successor_state = game_state.generate_successor(agent_index=AgentType.Player.value, action=action)
+            _, successor_value = self.alpha_beta_pruning(successor_state, depth - 1, AgentType.Opponent, new_alpha, beta)
+            if successor_value > value:
+                value = successor_value
+                best_action = action
+            new_alpha = max(new_alpha, value)
+            if new_alpha >= beta:
+                break
+        return best_action, value
+
+    def minimize_alpha_beta(self, depth, game_state, legal_moves, alpha, beta):
+        value = float('inf')
+        best_action = Action.STOP
+        new_beta = beta
+        for action in legal_moves:
+            successor_state = game_state.generate_successor(agent_index=AgentType.Opponent.value, action=action)
+            _, successor_value = self.alpha_beta_pruning(successor_state, depth, AgentType.Player, alpha, new_beta)
+            if successor_value < value:
+                value = successor_value
+                best_action = action
+            new_beta = min(new_beta, value)
+            if new_beta <= alpha:
+                break
+        return best_action, value
 
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
@@ -172,17 +217,125 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         legal moves.
         """
         """*** YOUR CODE HERE ***"""
-        util.raiseNotDefined()
+        action, _ = self.expectimax(game_state, self.depth, AgentType.Player)
+        return action
+
+    def expectimax(self, game_state: game_state.GameState, depth, agent: AgentType) -> Tuple[Optional[Action], float]:
+        """
+        Returns the maximum value for the current state
+        """
+        legal_moves = game_state.get_agent_legal_actions() if agent == AgentType.Player \
+            else game_state.get_opponent_legal_actions()
+        if depth == 0 or not legal_moves:
+            return Action.STOP, self.evaluation_function(game_state)
+
+        if agent == AgentType.Player:  # maximize
+            return self.maximize(depth, game_state, legal_moves)
+
+        else:  # minimize
+            return self.expectation(depth, game_state, legal_moves)
+
+    def maximize(self, depth, game_state, legal_moves):
+        value = float('-inf')
+        best_action = Action.STOP
+        for action in legal_moves:
+            successor_state = game_state.generate_successor(agent_index=AgentType.Player.value, action=action)
+            _, successor_value = self.expectimax(successor_state, depth - 1, AgentType.Opponent)
+            if successor_value > value:
+                value = successor_value
+                best_action = action
+        return best_action, value
+
+    def expectation(self, depth, game_state, legal_moves):
+        value = 0
+        prob = 1 / len(legal_moves)  # uniform distribution
+        for action in legal_moves:
+            successor_state = game_state.generate_successor(agent_index=AgentType.Opponent.value, action=action)
+            _, successor_value = self.expectimax(successor_state, depth, AgentType.Player)
+            value += prob * successor_value
+        return Action.STOP, value
 
 
 def better_evaluation_function(current_game_state):
     """
     Your extreme 2048 evaluation function (question 5).
 
-    DESCRIPTION: <write something here so we know what you did>
+    DESCRIPTION: 
+    This evaluation function aims to balance multiple aspects of the game state to provide a more
+    comprehensive evaluation. It considers the following factors:
+    1. The score of the game state.
+    2. The number of empty tiles available.
+    3. The maximum tile on the board.
+    4. The smoothness of the board (how similar adjacent tiles are).
+    5. The monotonicity of the board (whether values are consistently increasing or decreasing).
+    6. The clustering of tiles (penalizes isolated high-value tiles).
+
+    Args:
+        current_game_state (GameState): The current game state.
+
+    Returns:
+        float: The evaluation score of the game state.
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    board = current_game_state.board
+    score = current_game_state.score
+    max_tile = current_game_state.max_tile
+    free_tiles = len(current_game_state.get_empty_tiles()[0])
+
+    def smoothness(board):
+        smoothness_score = 0
+        for i in range(len(board)):
+            for j in range(len(board[i])):
+                if board[i][j] != 0:
+                    value = math.log(board[i][j], 2)
+                    # Check adjacent cells
+                    for direction in [(0, 1), (1, 0)]:
+                        x, y = i + direction[0], j + direction[1]
+                        if x < len(board) and y < len(board[i]) and board[x][y] != 0:
+                            smoothness_score -= abs(value - math.log(board[x][y], 2))
+        return smoothness_score
+
+    def monotonicity(board):
+        monotonicity_score = 0
+        for i in range(len(board)):
+            for j in range(1, len(board[i])):
+                if board[i][j] > board[i][j - 1]:
+                    monotonicity_score += 1
+                else:
+                    monotonicity_score -= 1
+
+        for j in range(len(board[0])):
+            for i in range(1, len(board)):
+                if board[i][j] > board[i - 1][j]:
+                    monotonicity_score += 1
+                else:
+                    monotonicity_score -= 1
+
+        return monotonicity_score
+
+    def clustering(board):
+        clustering_score = 0
+        for i in range(len(board)):
+            for j in range(len(board[i])):
+                if board[i][j] != 0:
+                    for direction in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                        x, y = i + direction[0], j + direction[1]
+                        if 0 <= x < len(board) and 0 <= y < len(board[i]):
+                            clustering_score += abs(board[i][j] - board[x][y])
+        return clustering_score
+
+    smoothness_score = smoothness(board)
+    monotonicity_score = monotonicity(board)
+    clustering_score = clustering(board)
+
+    # Combine all the factors into the final evaluation score
+    evaluation_score = (score +
+                        max_tile +
+                        free_tiles * 2 +
+                        smoothness_score * 0.1 +
+                        monotonicity_score * 1.5 -
+                        clustering_score * 0.5)
+
+    return evaluation_score
 
 
 # Abbreviation
