@@ -1,8 +1,13 @@
 import numpy as np
+from enum import Enum
 import abc
 import util
 from game import Agent, Action
 
+
+class AgentType(Enum):
+    Player = 0
+    Opponent = 1
 
 class ReflexAgent(Agent):
     """
