@@ -52,10 +52,14 @@ class Game(object):
         self._should_quit = False
 
     def run(self, initial_state):
+        import time
+        start = time.time()
         self._should_quit = False
         self._state = initial_state
         self.display.initialize(initial_state)
-        return self._game_loop()
+        x = self._game_loop()
+        print("Time taken: ", time.time() - start)
+        return x
 
     def quit(self):
         self._should_quit = True

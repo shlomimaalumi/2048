@@ -105,8 +105,8 @@ class MinmaxAgent(MultiAgentSearchAgent):
         """
         Returns the minimax action using self.depth and self.evaluation_function
         """
-        val = self.minmax(game_state, self.depth, AgentType.Player)
-        return val[0]
+        action, _ = self.minmax(game_state, self.depth, AgentType.Player)
+        return action
 
     def minmax(self, game_state: game_state.GameState, depth, agent: AgentType) -> Tuple[Optional[Action], float]:
         """
@@ -260,7 +260,7 @@ def better_evaluation_function(current_game_state):
     """
     Your extreme 2048 evaluation function (question 5).
 
-    DESCRIPTION: 
+    DESCRIPTION:
     This evaluation function aims to balance multiple aspects of the game state to provide a more
     comprehensive evaluation. It considers the following factors:
     1. The score of the game state.
@@ -340,3 +340,15 @@ def better_evaluation_function(current_game_state):
 
 # Abbreviation
 better = better_evaluation_function
+
+# depth 2
+# scores: [2824, 5420, 14300, 5432, 3172, 15200, 7116, 6820, 7096, 3316]
+# highest tile: [256, 512, 1024, 512, 256, 1024, 512, 512, 512, 256]
+# game_durations: [1.4226763248443604, 2.239691972732544, 4.135193586349487, 1.8162508010864258, 1.324225902557373, 3.9417996406555176, 2.016679048538208, 2.165271282196045, 2.2723283767700195, 1.3847596645355225]
+# win rate: 0.0
+
+# depth 3
+# scores: [7360, 15460, 7240, 7396, 14540, 3052, 11804, 11444, 12104, 5460]
+# highest tile: [512, 1024, 512, 512, 1024, 256, 1024, 1024, 1024, 512]
+# game_durations: [6.677149057388306, 10.053846597671509, 6.17314338684082, 6.617044687271118, 9.685779333114624, 4.812119245529175, 7.853864431381226, 7.877388000488281, 9.541579723358154, 4.951347827911377]
+# win rate: 0.0
